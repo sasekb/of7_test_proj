@@ -59,6 +59,8 @@ class BulkUpdateBackendsTest(TestCase):
         self.assertEqual(resp.status_code, HTTP_400_BAD_REQUEST)
         resp = client.post('/mediation/backends/bulk_activate/', {'id_list': 'ABC'})
         self.assertEqual(resp.status_code, HTTP_400_BAD_REQUEST)
+        resp = client.post('/mediation/backends/bulk_activate/', {'id_list': '[1, "a"]'})
+        self.assertEqual(resp.status_code, HTTP_400_BAD_REQUEST)
 
     def test_bulk_activation(self):
         client = BulkUpdateBackendsTest.client
@@ -70,18 +72,22 @@ class BulkUpdateBackendsTest(TestCase):
         self.assertEqual(resp.data[1]['id'], 2)
 
         # activate 2 & 3 instead of 1 & 2
-        client.post('/mediation/backends/bulk_activate/', {'id_list': '[2, 3]'})
+        client.post('/mediation/backends/bulk_activate/', {'id_list': '[3, 2]'})
         resp = client.get('/mediation/backends/')
         self.assertEqual(len(resp.data), 2)
         resp = self.client_anon.get('/mediation/backends/')
         self.assertEqual(len(resp.data), 2)
-        self.assertEqual(resp.data[0]['id'], 2)
-        self.assertEqual(resp.data[1]['id'], 3)
+        self.assertEqual(resp.data[0]['id'], 3)
+        self.assertEqual(resp.data[1]['id'], 2)
 
         # activate backends that do not exist (will disable all other backends; this is a documented behaviour.)
         client.post('/mediation/backends/bulk_activate/', {'id_list': '[4, 5]'})
         resp = client.get('/mediation/backends/')
         self.assertEqual(len(resp.data), 0)
+
+    def test_bulk_activation_options(self):
+        resp = self.client.options('/mediation/backends/bulk_activate/')
+        self.assertEqual(resp.data['actions']['POST']['id_list']['type'], 'list<int>')
 
     def test_single_activation(self):
         client = BulkUpdateBackendsTest.client

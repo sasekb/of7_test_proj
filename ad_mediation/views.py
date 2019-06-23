@@ -17,6 +17,7 @@ class BulkActivateEndpointMetadata(BaseMetadata):
             "name": "Bulk activate",
             "description": "This will activate all backends in bulk based on user input (id_list). " +
                            "It will deactivate all other backends. " +
+                           "It will order backends exactly how they are ordered in input list. " +
                            "WARNING: If you provide valid input with IDs that don't exist, the system will try to " +
                            "activate those and it will deactivate all other. This will result in all backends being " +
                            "deactivated.",
@@ -51,7 +52,7 @@ class BackendViewSet(viewsets.ModelViewSet):
         """
         List all backends that a re currently active
         """
-        queryset = self.queryset.filter(is_active=True)
+        queryset = self.queryset.filter(is_active=True).order_by('order')
         serializer = self.serializer_class(queryset, many=True)
         return Response(serializer.data)
 
@@ -60,12 +61,13 @@ class BackendViewSet(viewsets.ModelViewSet):
         """
         Get all backends (bot active and disabled)
         """
-        return Response(self.serializer_class(self.queryset.all(), many=True).data)
+        return Response(self.serializer_class(self.queryset.order_by('pk'), many=True).data)
 
     @action(detail=False, methods=['post', 'options'])
     def bulk_activate(self, request):
         """
         This will activate all backends in bulk based on user input. It will deactivate all other backends.
+        It will order backends exactly how they are ordered in input list.
         WARNING: If you provide valid input with IDs that don't exist, the system will try to activate those
         and it will deactivate all other. This will result in all backends being deactivated.
         """
@@ -79,12 +81,20 @@ class BackendViewSet(viewsets.ModelViewSet):
                 raise ValidationError('You must provide a list of IDs.')
             try:
                 id_list = json.loads(id_list)
-                assert hasattr(id_list, '__iter__')
+                assert hasattr(id_list, '__iter__')  # check if iterable
+                list(map(int, id_list))  # check if all items are (convertible to) integers
             except:
-                raise ValidationError('id_list must be convertable to a list/array of integers.')
+                raise ValidationError('id_list must be convertible to a list/array of integers.')
             model = self.serializer_class.Meta.model
             with transaction.atomic():
-                model.objects.filter(pk__in=id_list).update(is_active=True)
+                for obj in model.objects.filter(pk__in=id_list):
+                    obj.is_active = True
+                    obj.order = id_list.index(obj.pk)
+                    obj.save()
+                else:
+                    cache.clear()
                 model.objects.exclude(pk__in=id_list).update(is_active=False)
-                cache.delete_pattern('*backends*')
-            return Response('OK')
+            # return current state
+            queryset = self.queryset.filter(is_active=True).order_by('order')
+            serializer = self.serializer_class(queryset, many=True)
+            return Response(serializer.data)

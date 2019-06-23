@@ -9,6 +9,7 @@ class Backend(models.Model):
     is_active: declares whether it should be used or not
     """
     name = models.CharField(max_length=120)
+    order = models.IntegerField(default=9999)
     is_active = models.BooleanField(default=True)
 
     def save(self, *args, **kwargs):
