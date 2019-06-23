@@ -1,0 +1,26 @@
+[
+  {
+    "model": "ad_mediation.backend",
+    "pk": 1,
+    "fields": {
+      "name": "Backend 1",
+      "is_active": true
+    }
+  },
+  {
+    "model": "ad_mediation.backend",
+    "pk": 2,
+    "fields": {
+      "name": "Backend 2",
+      "is_active": true
+    }
+  },
+  {
+    "model": "ad_mediation.backend",
+    "pk": 3,
+    "fields": {
+      "name": "Backend 3",
+      "is_active": false
+    }
+  }
+]
